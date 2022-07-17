@@ -7,7 +7,7 @@
 
 以下のファイルを AviUtl の Plugins フォルダに入れてください。
 * SplitText.auf
-* SplitText.wav
+* SplitText (フォルダ) (ボイスが必要な場合のみ)
 
 ## 使用方法
 
@@ -23,8 +23,20 @@
 * 制御文字にも対応していません。
 * 分解後の文字位置は完全には一致しません。手動で微調整が必要です。
 
+## ボイス
+
+SplitText フォルダ内の wav ファイルが再生されます。
+
+* 0 ボイスなし
+* 1 青山龍星（ノーマル）ばんっかい
+* 2 青山龍星（ノーマル）ぶんっかい
+* 3 九州そら（セクシー）ばんんっかい
+* 4 九州そら（ささやき）ぶんんっかい
+* 5 ~ 10 空き
+
 ## 更新履歴
 
+* 1.1.0 - 2022/07/17 ボイスを選択できるように修正
 * 1.0.1 - 2022/07/17 テンポラリファイルをテスト用ドライブに作成していた問題を修正
 * 1.0.0 - 2022/07/17 初版
 
@@ -38,7 +50,7 @@
 * Microsoft Research Detours Package https://github.com/microsoft/Detours
 * aviutl_exedit_sdk https://github.com/ePi5131/aviutl_exedit_sdk
 * Common Library https://github.com/hebiiro/Common-Library
-* VOICEVOX (青山龍星) https://voicevox.hiroshiba.jp/
+* VOICEVOX (青山龍星、九州そら) https://voicevox.hiroshiba.jp/
 
 ## 作成者情報
  

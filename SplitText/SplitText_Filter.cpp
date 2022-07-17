@@ -59,6 +59,15 @@ BOOL func_WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam, AviUtl:
 
 //--------------------------------------------------------------------
 
+LPCSTR track_name[] =
+{
+	"ボイス",
+};
+
+int track_def[] = {  1 };
+int track_min[] = {  0 };
+int track_max[] = { 10 };
+
 LPCSTR check_name[] =
 {
 	"テキストを分解する",
@@ -69,7 +78,7 @@ int check_def[] = { -1 };
 EXTERN_C AviUtl::FilterPluginDLL* CALLBACK GetFilterTable()
 {
 	LPCSTR name = "テキスト分解";
-	LPCSTR information = "テキスト分解 1.0.1 by 蛇色";
+	LPCSTR information = "テキスト分解 1.1.0 by 蛇色";
 
 	static AviUtl::FilterPluginDLL filter =
 	{
@@ -82,6 +91,11 @@ EXTERN_C AviUtl::FilterPluginDLL* CALLBACK GetFilterTable()
 		.x = 100,
 		.y = 100,
 		.name = name,
+		.track_n = sizeof(track_name) / sizeof(*track_name),
+		.track_name = track_name,
+		.track_default = track_def,
+		.track_s = track_min,
+		.track_e = track_max,
 		.check_n = sizeof(check_name) / sizeof(*check_name),
 		.check_name = check_name,
 		.check_default = check_def,

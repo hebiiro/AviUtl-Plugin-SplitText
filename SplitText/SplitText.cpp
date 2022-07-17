@@ -58,11 +58,29 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 		return FALSE; // 選択アイテムがテキストオブジェクトではなかった。
 
 	{
-		TCHAR wavFileName[MAX_PATH] = {};
-		::GetModuleFileName(fp->dll_hinst, wavFileName, MAX_PATH);
-		::PathRenameExtension(wavFileName, _T(".wav"));
+		// ボイスの番号を取得する。
+		int voice = fp->track[TRACK_VOICE];
 
-		::PlaySound(wavFileName, 0, SND_FILENAME | SND_ASYNC);
+		if (voice)
+		{
+			// フォルダ名を取得する。
+			TCHAR folderName[MAX_PATH] = {};
+			::GetModuleFileName(fp->dll_hinst, folderName, MAX_PATH);
+			::PathRemoveExtension(folderName);
+			MY_TRACE_TSTR(folderName);
+
+			// wav ファイルのパスを取得する。
+			TCHAR wavFileName[MAX_PATH] = {};
+			::StringCbPrintf(wavFileName, sizeof(wavFileName), _T("%s\\%d.wav"), folderName, voice);
+			MY_TRACE_TSTR(wavFileName);
+
+			// ファイルが存在するなら
+			if (::GetFileAttributes(wavFileName) != INVALID_FILE_ATTRIBUTES)
+			{
+				// wav ファイルを再生する。
+				::PlaySound(wavFileName, 0, SND_FILENAME | SND_ASYNC);
+			}
+		}
 	}
 
 	// テンポラリフォルダのパスを取得する。
