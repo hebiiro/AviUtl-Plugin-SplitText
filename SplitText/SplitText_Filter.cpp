@@ -9,6 +9,9 @@ BOOL func_init(AviUtl::FilterPlugin* fp)
 
 	g_auin.initExEditAddress();
 
+	fp->exfunc->add_menu_item(fp, "テキストオブジェクトを分解する",
+		fp->hwnd, CHECK_SPLIT_TEXT, 0, AviUtl::ExFunc::AddMenuItemFlag::None);
+
 	return TRUE;
 }
 
@@ -41,14 +44,13 @@ BOOL func_WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam, AviUtl:
 		{
 			MY_TRACE(_T("func_WndProc(Command, 0x%08X, 0x%08X)\n"), wParam, lParam);
 
+			onCommand(LOWORD(wParam), editp, fp);
+
 			break;
 		}
 	case WM_COMMAND:
 		{
-			int index = LOWORD(wParam) - fp->MidFilterButton;
-			MY_TRACE_INT(index);
-
-			if (index == CHECK_SPLIT_TEXT) onSplitText(editp, fp);
+			onCommand(LOWORD(wParam) - fp->MidFilterButton, editp, fp);
 
 			break;
 		}
@@ -78,7 +80,7 @@ int check_def[] = { -1 };
 EXTERN_C AviUtl::FilterPluginDLL* CALLBACK GetFilterTable()
 {
 	LPCSTR name = "テキスト分解";
-	LPCSTR information = "テキスト分解 1.1.0 by 蛇色";
+	LPCSTR information = "テキスト分解 1.2.0 by 蛇色";
 
 	static AviUtl::FilterPluginDLL filter =
 	{

@@ -11,6 +11,7 @@ extern AviUtlInternal g_auin;
 
 //--------------------------------------------------------------------
 
+BOOL onCommand(int commandIndex, AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp);
 BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp);
 
 //--------------------------------------------------------------------

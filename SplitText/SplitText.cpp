@@ -15,6 +15,15 @@ AviUtlInternal g_auin;
 
 //--------------------------------------------------------------------
 
+BOOL onCommand(int commandIndex, AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
+{
+	MY_TRACE(_T("onCommand(%d)\n"), commandIndex);
+
+	if (commandIndex == CHECK_SPLIT_TEXT) onSplitText(editp, fp);
+
+	return FALSE;
+}
+
 BOOL WritePrivateProfileIntA(LPCSTR appName, LPCSTR keyName, int value, LPCSTR fileName)
 {
 	char text[MAX_PATH] = {}; _itoa_s(value, text, 10);
