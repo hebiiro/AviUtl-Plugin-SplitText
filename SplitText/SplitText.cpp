@@ -76,8 +76,7 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 
 	// テンポラリファイル名を取得する。
 	char tempFileName[MAX_PATH] = {};
-	::StringCbPrintfA(tempFileName, sizeof(tempFileName), "F:\\SplitText.exo");
-//	::StringCbPrintfA(tempFileName, sizeof(tempFileName), "%s\\SplitText%d.exo", tempPath, pid);
+	::StringCbPrintfA(tempFileName, sizeof(tempFileName), "%s\\SplitText%d.exo", tempPath, pid);
 	MY_TRACE_STR(tempFileName);
 
 	// 現在のシーンを exo ファイルに保存する。
@@ -155,11 +154,8 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 
 	// テンポラリファイル名を取得する。(文字列分割後の exo ファイル)
 	char tempFileNameSplit[MAX_PATH] = {};
-	::StringCbPrintfA(tempFileNameSplit, sizeof(tempFileNameSplit), "F:\\SplitAfter.exo");
-//	::StringCbPrintfA(tempFileNameSplit, sizeof(tempFileNameSplit), "%s\\SplitText%dSplit.exo", tempPath, pid);
+	::StringCbPrintfA(tempFileNameSplit, sizeof(tempFileNameSplit), "%s\\SplitText%dSplit.exo", tempPath, pid);
 	MY_TRACE_STR(tempFileNameSplit);
-
-	::DeleteFileA(tempFileNameSplit);
 
 	// セクションをコピーするのに使うバッファ。
 	std::vector<char> sectionBuffer(70000, '\0');
@@ -283,12 +279,10 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 		lineIndex++;
 	}
 
-	if (!g_auin.LoadExo(tempFileNameSplit, 0, 0, fp, editp))
-	{
-//		::MessageBox(fp->hwnd, _T("LoadExo() が失敗しました"), _T("SplitText"), MB_OK);
+	g_auin.LoadExo(tempFileNameSplit, 0, 0, fp, editp);
 
-		return FALSE;
-	}
+	::DeleteFileA(tempFileName);
+	::DeleteFileA(tempFileNameSplit);
 
 	return TRUE;
 }
