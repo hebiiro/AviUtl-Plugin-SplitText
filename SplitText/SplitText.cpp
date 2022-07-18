@@ -19,7 +19,7 @@ BOOL onCommand(int commandIndex, AviUtl::EditHandle* editp, AviUtl::FilterPlugin
 {
 	MY_TRACE(_T("onCommand(%d)\n"), commandIndex);
 
-	if (commandIndex == CHECK_SPLIT_TEXT) onSplitText(editp, fp);
+	if (commandIndex == Check::SplitText) onSplitText(editp, fp);
 
 	return FALSE;
 }
@@ -68,7 +68,7 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 
 	{
 		// ボイスの番号を取得する。
-		int voice = fp->track[TRACK_VOICE];
+		int voice = fp->track[Track::Voice];
 
 		if (voice)
 		{
@@ -122,6 +122,14 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 	// レイヤーを取得する。
 	int layer = ::GetPrivateProfileIntA(objectAppName, "layer", 1, tempFileName);
 	MY_TRACE_INT(layer);
+
+	// 開始フレームを取得する。
+	int start = ::GetPrivateProfileIntA(objectAppName, "start", 1, tempFileName);
+	MY_TRACE_INT(start);
+
+	// 終了フレームを取得する。
+	int end = ::GetPrivateProfileIntA(objectAppName, "end", 1, tempFileName);
+	MY_TRACE_INT(end);
 
 	// 最初のフィルタのセクション名を取得する。
 	char firstFilterAppName[MAX_PATH] = {};
@@ -239,6 +247,31 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 		text.resize(length);
 	}
 
+	int splitObjectCount = 0;
+
+	// 絶対フレームモードなら
+	if (fp->check[Check::AbsoluteFrameMode])
+	{
+		// 分解後のアイテムの総数を取得する。
+
+		std::wstringstream ss(text);
+		std::wstring line;
+		while (std::getline(ss, line, L'\n'))
+		{
+			for (int charIndex = 0; charIndex < (int)line.length(); charIndex++)
+			{
+				WCHAR ch = line[charIndex];
+
+				if (ch == L'\r' || ch == L'\n')
+					continue; // 改行文字は除外する。
+
+				splitObjectCount++;
+			}
+		}
+
+		MY_TRACE_INT(splitObjectCount);
+	}
+
 	std::wstringstream ss(text);
 	std::wstring line;
 	while (std::getline(ss, line, L'\n'))
@@ -265,14 +298,32 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 
 			MY_TRACE(_T("line = %d, char = %d, x = %d, y = %d\n"), lineIndex, charIndex, x, y);
 
+			// 16進数文字に変換されたテキストを取得する。
 			BYTE* hex = (BYTE*)&line[charIndex];
-
 			char hexText[4096 + 1] = {};
 			::StringCbPrintfA(hexText, sizeof(hexText), "%02X%02X", hex[0], hex[1]);
 			memset(hexText + 4, '0', 4096 - 4);
 			MY_TRACE_STR(hexText);
 
+			// フレームオフセットを取得する。
+			int frameOffset = 0;
+
+			// 絶対フレームモードなら
+			if (fp->check[Check::AbsoluteFrameMode])
+			{
+				int itemLength = end - start + 1;
+				int range = fp->track[Track::Frame] - itemLength;
+				frameOffset = ::MulDiv(range, splitObjectIndex, splitObjectCount - 1);
+			}
+			// 相対フレームモードなら
+			else
+			{
+				frameOffset = splitObjectIndex * fp->track[Track::Frame];
+			}
+
 			::WritePrivateProfileIntA(objectAppName, "layer", layer + splitObjectIndex + 1, tempFileName);
+			::WritePrivateProfileIntA(objectAppName, "start", start + frameOffset, tempFileName);
+			::WritePrivateProfileIntA(objectAppName, "end", end + frameOffset, tempFileName);
 			::WritePrivateProfileIntA(drawFilterAppName, "X", x, tempFileName);
 			::WritePrivateProfileIntA(drawFilterAppName, "Y", y, tempFileName);
 			::WritePrivateProfileStringA(firstFilterAppName, "text",  hexText, tempFileName);

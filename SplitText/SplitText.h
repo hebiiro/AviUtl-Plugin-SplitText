@@ -2,8 +2,17 @@
 
 //--------------------------------------------------------------------
 
-const int32_t TRACK_VOICE = 0;
-const int32_t CHECK_SPLIT_TEXT = 0;
+struct Track
+{
+	static const int32_t Voice = 0;
+	static const int32_t Frame = 1;
+};
+
+struct Check
+{
+	static const int32_t SplitText = 0;
+	static const int32_t AbsoluteFrameMode = 0;
+};
 
 //--------------------------------------------------------------------
 
