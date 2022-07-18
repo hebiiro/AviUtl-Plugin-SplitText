@@ -44,15 +44,11 @@ BOOL func_WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam, AviUtl:
 		{
 			MY_TRACE(_T("func_WndProc(Command, 0x%08X, 0x%08X)\n"), wParam, lParam);
 
-			onCommand(LOWORD(wParam), editp, fp);
-
-			break;
+			return onCommand(LOWORD(wParam), editp, fp);
 		}
 	case WM_COMMAND:
 		{
-			onCommand(LOWORD(wParam) - fp->MidFilterButton, editp, fp);
-
-			break;
+			return onCommand(LOWORD(wParam) - fp->MidFilterButton, editp, fp);
 		}
 	}
 
@@ -82,7 +78,7 @@ int check_def[] = { -1, 0 };
 EXTERN_C AviUtl::FilterPluginDLL* CALLBACK GetFilterTable()
 {
 	LPCSTR name = "テキスト分解";
-	LPCSTR information = "テキスト分解 1.3.0 by 蛇色";
+	LPCSTR information = "テキスト分解 1.4.0 by 蛇色";
 
 	static AviUtl::FilterPluginDLL filter =
 	{

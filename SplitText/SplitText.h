@@ -11,7 +11,7 @@ struct Track
 struct Check
 {
 	static const int32_t SplitText = 0;
-	static const int32_t AbsoluteFrameMode = 0;
+	static const int32_t AbsoluteFrameMode = 1;
 };
 
 //--------------------------------------------------------------------

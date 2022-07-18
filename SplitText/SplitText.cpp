@@ -43,6 +43,40 @@ int getSortedObjectIndex(ExEdit::Object* object)
 	return -1;
 }
 
+struct TextSize // 改行を含まない文字列のサイズを保持する。
+{
+	int m_width = 0;
+	int m_height = 0;
+	int m_centerX = 0;
+	int m_centerY = 0;
+
+	TextSize(HDC dc, LPCWSTR _text, int c, int spacing_x, int spacing_y, BOOL overhang = FALSE)
+	{
+		std::wstring text(_text, c);
+
+		if (text.empty()) return;
+		if (text.back() == L'\r') text.pop_back();
+		if (text.empty()) return;
+
+		SIZE size = {};
+		::GetTextExtentPoint32W(dc, text.c_str(), text.length(), &size);
+
+		m_width = size.cx;
+		m_height = size.cy;
+
+		if (overhang)
+		{
+			ABC abc = {};
+			::GetCharABCWidthsW(dc, text.back(), text.back(), &abc);
+			m_width -= abc.abcC;
+		}
+
+		m_centerX = m_width / 2;
+		m_centerY = m_height / 2;
+	}
+};
+
+
 BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 {
 	MY_TRACE(_T("onSplitText()\n"));
@@ -205,19 +239,6 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 	::StringCbPrintfA(drawFilterAppName, sizeof(drawFilterAppName), "%d.%d", sortedObjectIndex, drawFilterIndex);
 	MY_TRACE_STR(drawFilterAppName);
 
-	// 文字列矩形を取得するための HDC を用意する。
-	ClientDC dc(fp->hwnd);
-	GdiObj font = ::CreateFontA(-size, 0, 0, 0,
-		bold ? FW_BOLD : FW_NORMAL, italic, FALSE, FALSE,
-		DEFAULT_CHARSET, 0, 0, 0, 0, fontName);
-	GdiObjSelector fontSelector(dc, font);
-
-	// 基準となる文字列矩形を取得する。
-	RECT baseRect = {};
-	::DrawTextW(dc, L"A", 1, &baseRect, DT_CALCRECT);
-	int bx = baseRect.right;
-	int by = baseRect.bottom;
-
 /*
 0000100C Edit		X
 0000100D Edit		Y
@@ -247,17 +268,43 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 		text.resize(length);
 	}
 
+	// 文字列矩形を取得するための HDC を用意する。
+	ClientDC dc(fp->hwnd);
+	GdiObj font = ::CreateFontA(-size, 0, 0, 0,
+		bold ? FW_BOLD : FW_NORMAL, italic, FALSE, FALSE,
+		DEFAULT_CHARSET, 0, 0, 0, 0, fontName);
+	GdiObjSelector fontSelector(dc, font);
+
+	::SetTextCharacterExtra(dc, spacing_x);
+
+//	TEXTMETRICW tm = {};
+//	::GetTextMetricsW(dc, &tm);
+
+	// 基準となる文字列矩形を取得する。
+	TextSize baseSize(dc, L"A", 1, spacing_x, spacing_y);
+
+	// 分解後のアイテムの総数。
 	int splitObjectCount = 0;
 
-	// 絶対フレームモードなら
-	if (fp->check[Check::AbsoluteFrameMode])
+	// テキスト全体の大きさ。
+	int wholeWidth = 0;
+	int wholeHeight = 0;
+
 	{
-		// 分解後のアイテムの総数を取得する。
+		// ここで分解後のアイテムの総数とテキスト全体の大きさを取得する。
 
 		std::wstringstream ss(text);
 		std::wstring line;
 		while (std::getline(ss, line, L'\n'))
 		{
+			TextSize lineSize(dc, line.c_str(), line.length(), spacing_x, spacing_y, TRUE);
+
+			if (lineSize.m_width == 0)
+				continue;
+
+			wholeWidth = std::max(wholeWidth, lineSize.m_width);
+			wholeHeight += baseSize.m_height + spacing_y;
+
 			for (int charIndex = 0; charIndex < (int)line.length(); charIndex++)
 			{
 				WCHAR ch = line[charIndex];
@@ -269,8 +316,16 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 			}
 		}
 
+		wholeHeight -= spacing_y;
+
 		MY_TRACE_INT(splitObjectCount);
+		MY_TRACE_INT(wholeWidth);
+		MY_TRACE_INT(wholeHeight);
 	}
+
+	// テキスト全体の中心座標。
+	int wholeCenterX = wholeWidth / 2;
+	int wholeCenterY = wholeHeight / 2;
 
 	std::wstringstream ss(text);
 	std::wstring line;
@@ -279,7 +334,35 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 		MY_TRACE_WSTR(line.c_str());
 
 		// y を決定する。
-		int y = oy + (by + spacing_y) * lineIndex;
+		int y = oy + (baseSize.m_height + spacing_y) * lineIndex; // [上]
+
+		switch (align)
+		{
+		case 3:
+		case 4:
+		case 5:
+			{
+				// [中]
+
+				y -= wholeCenterY;
+				y += baseSize.m_centerY;
+
+				break;
+			}
+		case 6:
+		case 7:
+		case 8:
+			{
+				// [下]
+
+				y -= wholeHeight;
+				y += baseSize.m_height;
+
+				break;
+			}
+		}
+
+		TextSize lineSize(dc, line.c_str(), line.length(), spacing_x, spacing_y, TRUE);
 
 		for (int charIndex = 0; charIndex < (int)line.length(); charIndex++)
 		{
@@ -290,11 +373,39 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 				continue; // 改行文字は除外する。
 
 			// 文字列矩形を取得する。
-			RECT rc = {};
-			::DrawTextW(dc, line.c_str(), charIndex, &rc, DT_CALCRECT);
+			TextSize textSize(dc, line.c_str(), charIndex, spacing_x, spacing_y);
+
+			// 文字の矩形を取得する。
+			TextSize charSize(dc, line.c_str() + charIndex, 1, spacing_x, spacing_y, TRUE);
 
 			// x を決定する。
-			int x = ox + rc.right + spacing_x * charIndex;
+			int x = ox + textSize.m_width; // 左寄せ
+
+			switch (align)
+			{
+			case 1:
+			case 4:
+			case 7:
+				{
+					// 中央揃え
+
+					x -= lineSize.m_centerX;
+					x += charSize.m_centerX;
+
+					break;
+				}
+			case 2:
+			case 5:
+			case 8:
+				{
+					// 右寄せ
+
+					x -= lineSize.m_width;
+					x += charSize.m_width;
+
+					break;
+				}
+			}
 
 			MY_TRACE(_T("line = %d, char = %d, x = %d, y = %d\n"), lineIndex, charIndex, x, y);
 
@@ -340,11 +451,11 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 			{
 				char filterAppName[MAX_PATH] = {};
 				::StringCbPrintfA(filterAppName, sizeof(filterAppName), "%d.%d", sortedObjectIndex, i);
-				MY_TRACE_STR(filterAppName);
+//				MY_TRACE_STR(filterAppName);
 
 				char filterAppNameSplit[MAX_PATH] = {};
 				::StringCbPrintfA(filterAppNameSplit, sizeof(filterAppNameSplit), "%d.%d", splitObjectIndex, i);
-				MY_TRACE_STR(filterAppNameSplit);
+//				MY_TRACE_STR(filterAppNameSplit);
 
 				::GetPrivateProfileSectionA(filterAppName, sectionBuffer.data(), (DWORD)sectionBuffer.size(), tempFileName);
 				if (::GetLastError() == 0)
