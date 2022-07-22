@@ -1,5 +1,6 @@
 ﻿#include "pch.h"
 #include "SplitText.h"
+#include "TextSplitter.h"
 
 //--------------------------------------------------------------------
 
@@ -24,59 +25,16 @@ BOOL onCommand(int commandIndex, AviUtl::EditHandle* editp, AviUtl::FilterPlugin
 	return FALSE;
 }
 
-BOOL WritePrivateProfileIntA(LPCSTR appName, LPCSTR keyName, int value, LPCSTR fileName)
+BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 {
-	char text[MAX_PATH] = {}; _itoa_s(value, text, 10);
-	return ::WritePrivateProfileStringA(appName, keyName, text, fileName);
+	MY_TRACE(_T("onSplitText()\n"));
+
+	TextSplitter splitter(editp, fp);
+
+	return splitter.splitText();
 }
 
-int getSortedObjectIndex(ExEdit::Object* object)
-{
-	int c = g_auin.GetCurrentSceneObjectCount();
-
-	for (int i = 0; i < c; i++)
-	{
-		if (object == g_auin.GetSortedObject(i))
-			return i;
-	}
-
-	return -1;
-}
-
-struct TextSize // 改行を含まない文字列のサイズを保持する。
-{
-	int m_width = 0;
-	int m_height = 0;
-	int m_centerX = 0;
-	int m_centerY = 0;
-
-	TextSize(HDC dc, LPCWSTR _text, int c, int spacing_x, int spacing_y, BOOL overhang = FALSE)
-	{
-		std::wstring text(_text, c);
-
-		if (text.empty()) return;
-		if (text.back() == L'\r') text.pop_back();
-		if (text.empty()) return;
-
-		SIZE size = {};
-		::GetTextExtentPoint32W(dc, text.c_str(), text.length(), &size);
-
-		m_width = size.cx;
-		m_height = size.cy;
-
-		if (overhang)
-		{
-			ABC abc = {};
-			::GetCharABCWidthsW(dc, text.back(), text.back(), &abc);
-			m_width -= abc.abcC;
-		}
-
-		m_centerX = m_width / 2;
-		m_centerY = m_height / 2;
-	}
-};
-
-
+#if 0
 BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 {
 	MY_TRACE(_T("onSplitText()\n"));
@@ -478,5 +436,5 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 
 	return TRUE;
 }
-
+#endif
 //--------------------------------------------------------------------

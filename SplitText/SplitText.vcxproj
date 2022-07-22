@@ -190,6 +190,7 @@
   <ItemGroup>
     <ClInclude Include="SplitText.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="TextSplitter.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="SplitText.cpp" />
@@ -200,6 +201,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="SplitText_Filter.cpp" />
+    <ClCompile Include="TextSplitter.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

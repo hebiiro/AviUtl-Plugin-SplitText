@@ -3,10 +3,12 @@
   <ItemGroup>
     <ClInclude Include="pch.h" />
     <ClInclude Include="SplitText.h" />
+    <ClInclude Include="TextSplitter.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="SplitText.cpp" />
     <ClCompile Include="SplitText_Filter.cpp" />
+    <ClCompile Include="TextSplitter.cpp" />
   </ItemGroup>
 </Project>
