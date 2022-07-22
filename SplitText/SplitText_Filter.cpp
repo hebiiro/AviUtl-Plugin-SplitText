@@ -28,21 +28,23 @@ BOOL func_WndProc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam, AviUtl:
 
 	switch (message)
 	{
-	case AviUtl::detail::FilterPluginWindowMessage::Init:
+	case AviUtl::FilterPlugin::WindowMessage::Init:
 		{
 			MY_TRACE(_T("func_WndProc(Init, 0x%08X, 0x%08X)\n"), wParam, lParam);
 
 			break;
 		}
-	case AviUtl::detail::FilterPluginWindowMessage::Exit:
+	case AviUtl::FilterPlugin::WindowMessage::Exit:
 		{
 			MY_TRACE(_T("func_WndProc(Exit, 0x%08X, 0x%08X)\n"), wParam, lParam);
 
 			break;
 		}
-	case AviUtl::detail::FilterPluginWindowMessage::Command:
+	case AviUtl::FilterPlugin::WindowMessage::Command:
 		{
 			MY_TRACE(_T("func_WndProc(Command, 0x%08X, 0x%08X)\n"), wParam, lParam);
+
+			if (wParam == 0 && lParam == 0) return TRUE;
 
 			return onCommand(LOWORD(wParam), editp, fp);
 		}
@@ -78,7 +80,7 @@ int check_def[] = { -1, 0 };
 EXTERN_C AviUtl::FilterPluginDLL* CALLBACK GetFilterTable()
 {
 	LPCSTR name = "テキスト分解";
-	LPCSTR information = "テキスト分解 1.4.0 by 蛇色";
+	LPCSTR information = "テキスト分解 1.4.1 by 蛇色";
 
 	static AviUtl::FilterPluginDLL filter =
 	{

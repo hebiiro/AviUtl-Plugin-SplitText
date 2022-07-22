@@ -473,6 +473,9 @@ BOOL onSplitText(AviUtl::EditHandle* editp, AviUtl::FilterPlugin* fp)
 	::DeleteFileA(tempFileName);
 	::DeleteFileA(tempFileNameSplit);
 
+	// AviUtl のプレビューウィンドウを再描画する。
+	::PostMessage(fp->hwnd, AviUtl::FilterPlugin::WindowMessage::Command, 0, 0);
+
 	return TRUE;
 }
 
