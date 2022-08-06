@@ -328,7 +328,13 @@ BOOL TextSplitter::splitToChar(HDC dc, const std::wstring& line, int y)
 			frameOffset = m_splitObjectIndex * m_fp->track[Track::Frame];
 		}
 
-		::WritePrivateProfileIntA(m_objectAppName, "layer", m_layer + m_splitObjectIndex + 1, m_tempFileName);
+		int layer = m_layer + m_splitObjectIndex;
+
+		// 元のオブジェクトを削除しないなら
+		if (!m_fp->check[Check::DeleteOriginal])
+			layer++; // レイヤーを 1 つ下に下げる。
+
+		::WritePrivateProfileIntA(m_objectAppName, "layer", layer, m_tempFileName);
 		::WritePrivateProfileIntA(m_objectAppName, "start", m_start + frameOffset, m_tempFileName);
 		::WritePrivateProfileIntA(m_objectAppName, "end", m_end + frameOffset, m_tempFileName);
 		::WritePrivateProfileIntA(m_drawFilterAppName, "X", x, m_tempFileName);
@@ -400,7 +406,13 @@ BOOL TextSplitter::splitToRow(HDC dc, const std::wstring& line, int y)
 		frameOffset = m_splitObjectIndex * m_fp->track[Track::Frame];
 	}
 
-	::WritePrivateProfileIntA(m_objectAppName, "layer", m_layer + m_splitObjectIndex + 1, m_tempFileName);
+	int layer = m_layer + m_splitObjectIndex;
+
+	// 元のオブジェクトを削除しないなら
+	if (!m_fp->check[Check::DeleteOriginal])
+		layer++; // レイヤーを 1 つ下に下げる。
+
+	::WritePrivateProfileIntA(m_objectAppName, "layer", layer, m_tempFileName);
 	::WritePrivateProfileIntA(m_objectAppName, "start", m_start + frameOffset, m_tempFileName);
 	::WritePrivateProfileIntA(m_objectAppName, "end", m_end + frameOffset, m_tempFileName);
 	::WritePrivateProfileIntA(m_drawFilterAppName, "X", x, m_tempFileName);
@@ -511,6 +523,12 @@ BOOL TextSplitter::splitText()
 			splitToChar(dc, line, y);
 
 		m_lineIndex++;
+	}
+
+	if (m_fp->check[Check::DeleteOriginal])
+	{
+		// 元のオブジェクトを削除する。
+		::SendMessage(g_auin.GetExEditWindow(), WM_COMMAND, 0x3E9, 0);
 	}
 
 	g_auin.LoadExo(m_tempFileNameSplit, 0, 0, m_fp, m_editp);

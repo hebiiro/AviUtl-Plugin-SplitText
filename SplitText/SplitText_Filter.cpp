@@ -74,14 +74,15 @@ LPCSTR check_name[] =
 	"テキストを分解する",
 	"絶対フレームモード",
 	"行単位で分解する",
+	"元のオブジェクトを削除する",
 };
 
-int check_def[] = { -1, 0, 0 };
+int check_def[] = { -1, 0, 0, 0 };
 
 EXTERN_C AviUtl::FilterPluginDLL* CALLBACK GetFilterTable()
 {
 	LPCSTR name = "テキスト分解";
-	LPCSTR information = "テキスト分解 1.5.0 by 蛇色";
+	LPCSTR information = "テキスト分解 1.6.0 by 蛇色";
 
 	static AviUtl::FilterPluginDLL filter =
 	{
