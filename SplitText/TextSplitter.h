@@ -23,8 +23,6 @@ struct TextSize // 改行を含まない文字列のサイズを保持する。
 		std::wstring text(_text, c);
 
 		if (text.empty()) return FALSE;
-		if (text.back() == L'\r') text.pop_back();
-		if (text.empty()) return FALSE;
 
 		SIZE size = {};
 		::GetTextExtentPoint32W(dc, text.c_str(), text.length(), &size);
@@ -89,6 +87,8 @@ private:
 	int m_wholeHeight = 0;
 	int m_wholeCenterX = 0;
 	int m_wholeCenterY = 0;
+	int m_justificationWidth = 0;
+	int m_justificationX = 0;
 
 	int m_lineIndex = 0;
 	int m_splitObjectIndex = 0;
@@ -102,7 +102,9 @@ public:
 	BOOL getTempFileName();
 	BOOL getTextObjectInfo();
 	BOOL getText();
+	static std::wstring getLine(const std::wstring& _line);
 	BOOL getBaseSizeInfo(HDC dc);
+	BOOL writeChar(LPCWSTR text, int x, int y);
 	BOOL splitToChar(HDC dc, const std::wstring& line, int y);
 	BOOL splitToRow(HDC dc, const std::wstring& line, int y);
 };

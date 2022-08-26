@@ -37,7 +37,12 @@
 「絶対フレームモード」にチェックが入っている場合に適用されます。<br>
 最後のアイテムの終了フレームが「フレーム」の数値になるように調整されます。<br>
 例えば 60FPS で 300 を指定すると最初のアイテムが表示されてから 5 秒後に最後のアイテムの表示が終了します。<br>
-0 にしても同一フレームには配置されないので注意してください。<br>
+0 にしても開始フレームが同一にはならないので注意してください。<br>
+
+## 行端揃え
+
+「行端揃え」にチェックが入っている場合に適用されます。<br>
+「幅」で行の幅を指定します。0 の場合はテキストオブジェクトの幅で揃えます。<br>
 
 ## ボイス
 
@@ -48,10 +53,12 @@ SplitText フォルダ内の wav ファイルが再生されます。
 * 2 青山龍星（ノーマル）ぶんっかい
 * 3 九州そら（セクシー）ばんんっかい
 * 4 九州そら（ささやき）ぶんんっかい
-* 5 ~ 10 空き
+* 5 九州そら（ささやき）ばんんっかい
+* 6 ~ 10 空き
 
 ## 更新履歴
 
+* 1.7.0 - 2022/08/26 行端揃えにする機能を追加
 * 1.6.0 - 2022/08/06 元のオブジェクトを削除する機能を追加
 * 1.5.0 - 2022/07/22 行単位で分解できる機能を追加
 * 1.4.1 - 2022/07/22 処理後にプレビューが更新されなかった問題を修正
@@ -65,14 +72,16 @@ SplitText フォルダ内の wav ファイルが再生されます。
 ## 動作確認
 
 * (必須) AviUtl 1.10 & 拡張編集 0.92 http://spring-fragrance.mints.ne.jp/aviutl/
-* (共存確認) patch.aul r41 https://scrapbox.io/ePi5131/patch.aul
+* (共存確認) patch.aul r42 https://scrapbox.io/ePi5131/patch.aul
 
 ## クレジット
 
 * Microsoft Research Detours Package https://github.com/microsoft/Detours
 * aviutl_exedit_sdk https://github.com/ePi5131/aviutl_exedit_sdk
 * Common Library https://github.com/hebiiro/Common-Library
-* VOICEVOX (青山龍星、九州そら) https://voicevox.hiroshiba.jp/
+* VOICEVOX https://voicevox.hiroshiba.jp/
+* VOICEVOX:青山龍星
+* VOICEVOX:九州そら
 
 ## 作成者情報
  

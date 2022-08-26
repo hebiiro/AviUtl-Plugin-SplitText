@@ -196,6 +196,17 @@ BOOL TextSplitter::getText()
 	return TRUE;
 }
 
+std::wstring TextSplitter::getLine(const std::wstring& _line)
+{
+	std::wstring line = _line;
+	std::wstring chars = L"\r\n";
+ 
+	for (WCHAR c : chars)
+		line.erase(std::remove(line.begin(), line.end(), c), line.end());
+
+	return line;
+}
+
 BOOL TextSplitter::getBaseSizeInfo(HDC dc)
 {
 	// 基準となる文字列矩形を取得する。
@@ -215,6 +226,8 @@ BOOL TextSplitter::getBaseSizeInfo(HDC dc)
 		std::wstring line;
 		while (std::getline(ss, line, L'\n'))
 		{
+			line = getLine(line);
+
 			TextSize lineSize(dc, line.c_str(), line.length(), m_spacing_x, m_spacing_y, TRUE);
 
 			if (lineSize.m_width == 0)
@@ -234,9 +247,6 @@ BOOL TextSplitter::getBaseSizeInfo(HDC dc)
 				{
 					WCHAR ch = line[charIndex];
 
-					if (ch == L'\r' || ch == L'\n')
-						continue; // 改行文字は除外する。
-
 					m_splitObjectCount++; // 文字数をカウントする。
 				}
 			}
@@ -253,6 +263,100 @@ BOOL TextSplitter::getBaseSizeInfo(HDC dc)
 	m_wholeCenterX = m_wholeWidth / 2;
 	m_wholeCenterY = m_wholeHeight / 2;
 
+	m_justificationWidth = m_wholeWidth;
+	if (m_fp->track[Track::Justification] != 0)
+		m_justificationWidth = m_fp->track[Track::Justification];
+
+	m_justificationX = m_ox; // [上]
+
+	switch (m_align)
+	{
+	case 1:
+	case 4:
+	case 7:
+		{
+			// 中央揃え
+
+			m_justificationX -= m_justificationWidth / 2;
+
+			break;
+		}
+	case 2:
+	case 5:
+	case 8:
+		{
+			// 右寄せ
+
+			m_justificationX -= m_justificationWidth;
+
+			break;
+		}
+	}
+
+	return TRUE;
+}
+
+BOOL TextSplitter::writeChar(LPCWSTR text, int x, int y)
+{
+	// 16進数文字に変換されたテキストを取得する。
+	char hexText[4096 + 1] = {};
+	BYTE* hex = (BYTE*)text;
+	::StringCbPrintfA(hexText, sizeof(hexText), "%02X%02X", hex[0], hex[1]);
+	memset(hexText + 4, '0', 4096 - 4);
+	MY_TRACE_STR(hexText);
+
+	// フレームオフセットを取得する。
+	int frameOffset = 0;
+
+	// 絶対フレームモードなら
+	if (m_fp->check[Check::AbsoluteFrameMode])
+	{
+		int itemLength = m_end - m_start + 1;
+		int range = m_fp->track[Track::Frame] - itemLength;
+		frameOffset = ::MulDiv(range, m_splitObjectIndex, m_splitObjectCount - 1);
+	}
+	// 相対フレームモードなら
+	else
+	{
+		frameOffset = m_splitObjectIndex * m_fp->track[Track::Frame];
+	}
+
+	int layer = m_layer + m_splitObjectIndex;
+
+	// 元のオブジェクトを削除しないなら
+	if (!m_fp->check[Check::DeleteOriginal])
+		layer++; // レイヤーを 1 つ下に下げる。
+
+	::WritePrivateProfileIntA(m_objectAppName, "layer", layer, m_tempFileName);
+	::WritePrivateProfileIntA(m_objectAppName, "start", m_start + frameOffset, m_tempFileName);
+	::WritePrivateProfileIntA(m_objectAppName, "end", m_end + frameOffset, m_tempFileName);
+	::WritePrivateProfileIntA(m_drawFilterAppName, "X", x, m_tempFileName);
+	::WritePrivateProfileIntA(m_drawFilterAppName, "Y", y, m_tempFileName);
+	::WritePrivateProfileStringA(m_firstFilterAppName, "text",  hexText, m_tempFileName);
+
+	char objectAppNameSplit[MAX_PATH] = {};
+	::StringCbPrintfA(objectAppNameSplit, sizeof(objectAppNameSplit), "%d", m_splitObjectIndex);
+	MY_TRACE_STR(objectAppNameSplit);
+
+	::GetPrivateProfileSectionA(m_objectAppName, m_sectionBuffer.data(), (DWORD)m_sectionBuffer.size(), m_tempFileName);
+	if (::GetLastError() == 0)
+		::WritePrivateProfileSectionA(objectAppNameSplit, m_sectionBuffer.data(), m_tempFileNameSplit);
+
+	for (int i = 0; i < ExEdit::Object::MAX_FILTER; i++)
+	{
+		char filterAppName[MAX_PATH] = {};
+		::StringCbPrintfA(filterAppName, sizeof(filterAppName), "%d.%d", m_sortedObjectIndex, i);
+//		MY_TRACE_STR(filterAppName);
+
+		char filterAppNameSplit[MAX_PATH] = {};
+		::StringCbPrintfA(filterAppNameSplit, sizeof(filterAppNameSplit), "%d.%d", m_splitObjectIndex, i);
+//		MY_TRACE_STR(filterAppNameSplit);
+
+		::GetPrivateProfileSectionA(filterAppName, m_sectionBuffer.data(), (DWORD)m_sectionBuffer.size(), m_tempFileName);
+		if (::GetLastError() == 0)
+			::WritePrivateProfileSectionA(filterAppNameSplit, m_sectionBuffer.data(), m_tempFileNameSplit);
+	}
+
 	return TRUE;
 }
 
@@ -260,13 +364,12 @@ BOOL TextSplitter::splitToChar(HDC dc, const std::wstring& line, int y)
 {
 	TextSize lineSize(dc, line.c_str(), line.length(), m_spacing_x, m_spacing_y, TRUE);
 
+	int extraWidth = m_justificationWidth - lineSize.m_width;
+
 	for (int charIndex = 0; charIndex < (int)line.length(); charIndex++)
 	{
 		WCHAR ch = line[charIndex];
 		MY_TRACE_HEX(ch);
-
-		if (ch == L'\r' || ch == L'\n')
-			continue; // 改行文字は除外する。
 
 		// 文字列矩形を取得する。
 		TextSize textSize(dc, line.c_str(), charIndex, m_spacing_x, m_spacing_y);
@@ -275,94 +378,77 @@ BOOL TextSplitter::splitToChar(HDC dc, const std::wstring& line, int y)
 		TextSize charSize(dc, line.c_str() + charIndex, 1, m_spacing_x, m_spacing_y, TRUE);
 
 		// x を決定する。
-		int x = m_ox + textSize.m_width; // 左寄せ
+		int x = 0;
 
-		switch (m_align)
+		// 行端揃えなら
+		if (m_fp->check[Check::Justification])
 		{
-		case 1:
-		case 4:
-		case 7:
+			x = m_ox + textSize.m_width; // 左寄せ
+
+			if (line.length() >= 2)
+				x += ::MulDiv(extraWidth, charIndex, line.length() - 1);
+
+			switch (m_align)
 			{
-				// 中央揃え
+			case 1:
+			case 4:
+			case 7:
+				{
+					// 中央揃え
 
-				x -= lineSize.m_centerX;
-				x += charSize.m_centerX;
+					x -= m_justificationWidth / 2;
+					x += charSize.m_centerX;
 
-				break;
+					break;
+				}
+			case 2:
+			case 5:
+			case 8:
+				{
+					// 右寄せ
+
+					x -= m_justificationWidth;
+					x += charSize.m_width;
+
+					break;
+				}
 			}
-		case 2:
-		case 5:
-		case 8:
+		}
+		// 行端揃えではないなら
+		else
+		{
+			x = m_ox + textSize.m_width; // 左寄せ
+
+			switch (m_align)
 			{
-				// 右寄せ
+			case 1:
+			case 4:
+			case 7:
+				{
+					// 中央揃え
 
-				x -= lineSize.m_width;
-				x += charSize.m_width;
+					x -= lineSize.m_centerX;
+					x += charSize.m_centerX;
 
-				break;
+					break;
+				}
+			case 2:
+			case 5:
+			case 8:
+				{
+					// 右寄せ
+
+					x -= lineSize.m_width;
+					x += charSize.m_width;
+
+					break;
+				}
 			}
 		}
 
 		MY_TRACE(_T("line = %d, char = %d, x = %d, y = %d\n"), m_lineIndex, charIndex, x, y);
 
-		// 16進数文字に変換されたテキストを取得する。
-		char hexText[4096 + 1] = {};
-		BYTE* hex = (BYTE*)&line[charIndex];
-		::StringCbPrintfA(hexText, sizeof(hexText), "%02X%02X", hex[0], hex[1]);
-		memset(hexText + 4, '0', 4096 - 4);
-		MY_TRACE_STR(hexText);
-
-		// フレームオフセットを取得する。
-		int frameOffset = 0;
-
-		// 絶対フレームモードなら
-		if (m_fp->check[Check::AbsoluteFrameMode])
-		{
-			int itemLength = m_end - m_start + 1;
-			int range = m_fp->track[Track::Frame] - itemLength;
-			frameOffset = ::MulDiv(range, m_splitObjectIndex, m_splitObjectCount - 1);
-		}
-		// 相対フレームモードなら
-		else
-		{
-			frameOffset = m_splitObjectIndex * m_fp->track[Track::Frame];
-		}
-
-		int layer = m_layer + m_splitObjectIndex;
-
-		// 元のオブジェクトを削除しないなら
-		if (!m_fp->check[Check::DeleteOriginal])
-			layer++; // レイヤーを 1 つ下に下げる。
-
-		::WritePrivateProfileIntA(m_objectAppName, "layer", layer, m_tempFileName);
-		::WritePrivateProfileIntA(m_objectAppName, "start", m_start + frameOffset, m_tempFileName);
-		::WritePrivateProfileIntA(m_objectAppName, "end", m_end + frameOffset, m_tempFileName);
-		::WritePrivateProfileIntA(m_drawFilterAppName, "X", x, m_tempFileName);
-		::WritePrivateProfileIntA(m_drawFilterAppName, "Y", y, m_tempFileName);
-		::WritePrivateProfileStringA(m_firstFilterAppName, "text",  hexText, m_tempFileName);
-
-		char objectAppNameSplit[MAX_PATH] = {};
-		::StringCbPrintfA(objectAppNameSplit, sizeof(objectAppNameSplit), "%d", m_splitObjectIndex);
-		MY_TRACE_STR(objectAppNameSplit);
-
-		::GetPrivateProfileSectionA(m_objectAppName, m_sectionBuffer.data(), (DWORD)m_sectionBuffer.size(), m_tempFileName);
-		if (::GetLastError() == 0)
-			::WritePrivateProfileSectionA(objectAppNameSplit, m_sectionBuffer.data(), m_tempFileNameSplit);
-
-		for (int i = 0; i < ExEdit::Object::MAX_FILTER; i++)
-		{
-			char filterAppName[MAX_PATH] = {};
-			::StringCbPrintfA(filterAppName, sizeof(filterAppName), "%d.%d", m_sortedObjectIndex, i);
-//			MY_TRACE_STR(filterAppName);
-
-			char filterAppNameSplit[MAX_PATH] = {};
-			::StringCbPrintfA(filterAppNameSplit, sizeof(filterAppNameSplit), "%d.%d", m_splitObjectIndex, i);
-//			MY_TRACE_STR(filterAppNameSplit);
-
-			::GetPrivateProfileSectionA(filterAppName, m_sectionBuffer.data(), (DWORD)m_sectionBuffer.size(), m_tempFileName);
-			if (::GetLastError() == 0)
-				::WritePrivateProfileSectionA(filterAppNameSplit, m_sectionBuffer.data(), m_tempFileNameSplit);
-		}
+		writeChar(&line[charIndex], x, y);
 
 		m_splitObjectIndex++;
 	}
@@ -486,6 +572,8 @@ BOOL TextSplitter::splitText()
 	std::wstring line;
 	while (std::getline(ss, line, L'\n'))
 	{
+		line = getLine(line);
+
 		MY_TRACE_WSTR(line.c_str());
 
 		// y を決定する。

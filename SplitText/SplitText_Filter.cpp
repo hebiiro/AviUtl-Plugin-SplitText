@@ -63,35 +63,37 @@ LPCSTR track_name[] =
 {
 	"ﾎﾞｲｽ",
 	"ﾌﾚｰﾑ",
+	"幅",
 };
 
-int track_def[] = {  1,     0 };
-int track_min[] = {  0, -6000 };
-int track_max[] = { 10, +6000 };
+int track_def[] = {  1,     0,     0 };
+int track_min[] = {  0, -6000,     0 };
+int track_max[] = { 10, +6000, 10000 };
 
 LPCSTR check_name[] =
 {
 	"テキストを分解する",
 	"絶対フレームモード",
 	"行単位で分解する",
+	"行端揃え",
 	"元のオブジェクトを削除する",
 };
 
-int check_def[] = { -1, 0, 0, 0 };
+int check_def[] = { -1, 0, 0, 0, 0 };
 
-EXTERN_C AviUtl::FilterPluginDLL* CALLBACK GetFilterTable()
+EXTERN_C AviUtl::FilterPluginDLL* WINAPI GetFilterTable()
 {
 	LPCSTR name = "テキスト分解";
-	LPCSTR information = "テキスト分解 1.6.0 by 蛇色";
+	LPCSTR information = "テキスト分解 1.7.0 by 蛇色";
 
 	static AviUtl::FilterPluginDLL filter =
 	{
 		.flag =
-			AviUtl::detail::FilterPluginFlag::AlwaysActive |
-			AviUtl::detail::FilterPluginFlag::DispFilter |
-//			AviUtl::detail::FilterPluginFlag::WindowThickFrame |
-//			AviUtl::detail::FilterPluginFlag::WindowSize |
-			AviUtl::detail::FilterPluginFlag::ExInformation,
+			AviUtl::FilterPluginDLL::Flag::AlwaysActive |
+			AviUtl::FilterPluginDLL::Flag::DispFilter |
+//			AviUtl::FilterPluginDLL::Flag::WindowThickFrame |
+//			AviUtl::FilterPluginDLL::Flag::WindowSize |
+			AviUtl::FilterPluginDLL::Flag::ExInformation,
 		.name = name,
 		.track_n = sizeof(track_name) / sizeof(*track_name),
 		.track_name = track_name,
