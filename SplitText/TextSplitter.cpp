@@ -51,7 +51,19 @@ BOOL TextSplitter::playVoice(int voice)
 	if (::GetFileAttributes(wavFileName) != INVALID_FILE_ATTRIBUTES)
 	{
 		// wav ファイルを再生する。
-		::PlaySound(wavFileName, 0, SND_FILENAME | SND_ASYNC);
+
+		TCHAR exeFileName[MAX_PATH] = {};
+		::GetModuleFileName(0, exeFileName, MAX_PATH);
+		::PathRemoveFileSpec(exeFileName);
+		::PathAppend(exeFileName, _T("WavPlayer.exe"));
+		::PathQuoteSpaces(exeFileName);
+		MY_TRACE_TSTR(exeFileName);
+
+		SHELLEXECUTEINFO sei = { sizeof(sei) };
+		sei.lpFile = exeFileName;
+		sei.lpParameters = wavFileName;
+		BOOL result = ::ShellExecuteEx(&sei);
+		MY_TRACE_HEX(result);
 	}
 
 	return TRUE;
@@ -176,6 +188,8 @@ BOOL TextSplitter::getTextObjectInfo()
 
 		// 描画フィルタのインデックスを保存しておく。
 		m_drawFilterIndex = i;
+
+		break;
 	}
 
 	return TRUE;

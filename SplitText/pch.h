@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <windowsx.h>
 #pragma comment(lib, "msimg32.lib")
+#include <shellapi.h>
 #include <shlwapi.h>
 #pragma comment(lib, "shlwapi.lib")
 #include <mmsystem.h>
