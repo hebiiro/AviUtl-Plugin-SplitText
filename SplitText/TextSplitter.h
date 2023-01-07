@@ -73,8 +73,34 @@ private:
 	int m_spacing_y = 0;
 	char m_fontName[MAX_PATH] = {};
 
-	int m_ox = 0;
-	int m_oy = 0;
+	struct PosMode
+	{
+		static const int Solo = 0;
+		static const int Pair = 1;
+		static const int Animation = 2;
+	};
+
+	struct Pos
+	{
+		static const int Begin = 0;
+		static const int End = 1;
+
+		int m_mode;
+		double m_pos[2];
+		char m_animation[MAX_PATH];
+
+		int getCount()
+		{
+			switch (m_mode)
+			{
+			case PosMode::Solo: return 1;
+			default: return 2;
+			}
+		}
+	};
+
+	Pos m_ox = {};
+	Pos m_oy = {};
 	int m_drawFilterIndex = -1;
 
 	std::vector<char> m_sectionBuffer;
@@ -88,7 +114,7 @@ private:
 	int m_wholeCenterX = 0;
 	int m_wholeCenterY = 0;
 	int m_justificationWidth = 0;
-	int m_justificationX = 0;
+	double m_justificationX[2] = {};
 
 	int m_lineIndex = 0;
 	int m_splitObjectIndex = 0;
@@ -101,12 +127,14 @@ public:
 	BOOL playVoice(int voice);
 	BOOL getTempFileName();
 	BOOL getTextObjectInfo();
+	BOOL getPos(Pos* pos, LPCSTR appName, LPCSTR label);
 	BOOL getText();
 	static std::wstring getLine(const std::wstring& _line);
 	BOOL getBaseSizeInfo(HDC dc);
-	BOOL writeChar(LPCWSTR text, int x, int y);
-	BOOL splitToChar(HDC dc, const std::wstring& line, int y);
-	BOOL splitToRow(HDC dc, const std::wstring& line, int y);
+	BOOL writeChar(LPCWSTR text, double x[2], double y[2]);
+	BOOL writePos(Pos* pos, LPCSTR label, double value[2]);
+	BOOL splitToChar(HDC dc, const std::wstring& line, double y[2]);
+	BOOL splitToRow(HDC dc, const std::wstring& line, double y[2]);
 };
 
 //--------------------------------------------------------------------

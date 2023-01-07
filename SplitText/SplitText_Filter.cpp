@@ -84,7 +84,7 @@ int check_def[] = { -1, 0, 0, 0, 0 };
 EXTERN_C AviUtl::FilterPluginDLL* WINAPI GetFilterTable()
 {
 	LPCSTR name = "テキスト分解";
-	LPCSTR information = "テキスト分解 1.7.0 by 蛇色";
+	LPCSTR information = "テキスト分解 2.0.0 by 蛇色";
 
 	static AviUtl::FilterPluginDLL filter =
 	{

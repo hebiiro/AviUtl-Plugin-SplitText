@@ -76,6 +76,8 @@ BOOL TextSplitter::getTempFileName()
 	::GetTempPathA(MAX_PATH, tempPath);
 	MY_TRACE_STR(tempPath);
 
+//	::StringCbCopy(tempPath, sizeof(tempPath), "F:");
+
 	// カレントプロセスの ID を取得する。ファイル名の重複を防ぐのに使用する。
 	DWORD pid = ::GetCurrentProcessId();
 	MY_TRACE_INT(pid);
@@ -163,8 +165,8 @@ BOOL TextSplitter::getTextObjectInfo()
 	MY_TRACE_STR(m_fontName);
 
 	// オブジェクトの x と y を取得する。
-	m_ox = 0;
-	m_oy = 0;
+	memset(&m_ox, 0, sizeof(m_ox));
+	memset(&m_oy, 0, sizeof(m_oy));
 	m_drawFilterIndex = -1;
 
 	for (int i = 0; i < ExEdit::Object::MAX_FILTER; i++)
@@ -183,8 +185,8 @@ BOOL TextSplitter::getTextObjectInfo()
 			continue; // このフィルタは標準描画でも拡張描画でもなかった。
 
 		// x と y を取得する。
-		m_ox = ::GetPrivateProfileIntA(appName, "X", 0, m_tempFileName);
-		m_oy = ::GetPrivateProfileIntA(appName, "Y", 0, m_tempFileName);
+		getPos(&m_ox, appName, "X");
+		getPos(&m_oy, appName, "Y");
 
 		// 描画フィルタのインデックスを保存しておく。
 		m_drawFilterIndex = i;
@@ -192,6 +194,43 @@ BOOL TextSplitter::getTextObjectInfo()
 		break;
 	}
 
+	return TRUE;
+}
+
+BOOL TextSplitter::getPos(Pos* pos, LPCSTR appName, LPCSTR label)
+{
+	char text[MAX_PATH] = {};
+	::GetPrivateProfileStringA(appName, label, "", text, _countof(text), m_tempFileName);
+	MY_TRACE_STR(text);
+
+	LPSTR p = text;
+	LPSTR sep1 = strchr(p, ',');
+
+	if (!sep1)
+	{
+		// text が数字のみ。
+		pos->m_mode = PosMode::Solo;
+		pos->m_pos[Pos::Begin] = atof(p);
+		return TRUE;
+	}
+
+	LPSTR sep2 = strchr(sep1 + 1, ',');
+
+	if (!sep2)
+	{
+		// text が数字 2 個のみ。
+		pos->m_mode = PosMode::Pair;
+		pos->m_pos[Pos::Begin] = atof(p);
+		pos->m_pos[Pos::End] = atof(sep1 + 1);
+		return TRUE;
+	}
+
+	// text が数字 2 個とアニメーションテキスト。
+
+	pos->m_mode = PosMode::Animation;
+	pos->m_pos[Pos::Begin] = atof(p);
+	pos->m_pos[Pos::End] = atof(sep1 + 1);
+	::StringCbPrintf(pos->m_animation, sizeof(pos->m_animation), sep2 + 1);
 	return TRUE;
 }
 
@@ -281,36 +320,39 @@ BOOL TextSplitter::getBaseSizeInfo(HDC dc)
 	if (m_fp->track[Track::Justification] != 0)
 		m_justificationWidth = m_fp->track[Track::Justification];
 
-	m_justificationX = m_ox; // [上]
-
-	switch (m_align)
+	for (int i = 0; i < 2; i++)
 	{
-	case 1:
-	case 4:
-	case 7:
+		m_justificationX[i] = m_ox.m_pos[i]; // [上]
+
+		switch (m_align)
 		{
-			// 中央揃え
+		case 1:
+		case 4:
+		case 7:
+			{
+				// 中央揃え
 
-			m_justificationX -= m_justificationWidth / 2;
+				m_justificationX[i] -= m_justificationWidth / 2;
 
-			break;
-		}
-	case 2:
-	case 5:
-	case 8:
-		{
-			// 右寄せ
+				break;
+			}
+		case 2:
+		case 5:
+		case 8:
+			{
+				// 右寄せ
 
-			m_justificationX -= m_justificationWidth;
+				m_justificationX[i] -= m_justificationWidth;
 
-			break;
+				break;
+			}
 		}
 	}
 
 	return TRUE;
 }
 
-BOOL TextSplitter::writeChar(LPCWSTR text, int x, int y)
+BOOL TextSplitter::writeChar(LPCWSTR text, double x[2], double y[2])
 {
 	// 16進数文字に変換されたテキストを取得する。
 	char hexText[4096 + 1] = {};
@@ -344,8 +386,8 @@ BOOL TextSplitter::writeChar(LPCWSTR text, int x, int y)
 	::WritePrivateProfileIntA(m_objectAppName, "layer", layer, m_tempFileName);
 	::WritePrivateProfileIntA(m_objectAppName, "start", m_start + frameOffset, m_tempFileName);
 	::WritePrivateProfileIntA(m_objectAppName, "end", m_end + frameOffset, m_tempFileName);
-	::WritePrivateProfileIntA(m_drawFilterAppName, "X", x, m_tempFileName);
-	::WritePrivateProfileIntA(m_drawFilterAppName, "Y", y, m_tempFileName);
+	writePos(&m_ox, "X", x);
+	writePos(&m_oy, "Y", y);
 	::WritePrivateProfileStringA(m_firstFilterAppName, "text",  hexText, m_tempFileName);
 
 	char objectAppNameSplit[MAX_PATH] = {};
@@ -374,7 +416,37 @@ BOOL TextSplitter::writeChar(LPCWSTR text, int x, int y)
 	return TRUE;
 }
 
-BOOL TextSplitter::splitToChar(HDC dc, const std::wstring& line, int y)
+BOOL TextSplitter::writePos(Pos* pos, LPCSTR label, double value[2])
+{
+	char text[MAX_PATH] = {};
+
+	switch (pos->m_mode)
+	{
+	case PosMode::Solo:
+		{
+			::StringCbPrintf(text, sizeof(text), "%.1f", value[0]);
+			break;
+		}
+	case PosMode::Pair:
+		{
+			::StringCbPrintf(text, sizeof(text), "%.1f,%.1f", value[0], value[1]);
+			break;
+		}
+	case PosMode::Animation:
+		{
+			::StringCbPrintf(text, sizeof(text), "%.1f,%.1f,%s", value[0], value[1], pos->m_animation);
+			break;
+		}
+	}
+
+	MY_TRACE_STR(text);
+
+	::WritePrivateProfileStringA(m_drawFilterAppName, label, text, m_tempFileName);
+
+	return TRUE;
+}
+
+BOOL TextSplitter::splitToChar(HDC dc, const std::wstring& line, double y[2])
 {
 	TextSize lineSize(dc, line.c_str(), line.length(), m_spacing_x, m_spacing_y, TRUE);
 
@@ -391,76 +463,80 @@ BOOL TextSplitter::splitToChar(HDC dc, const std::wstring& line, int y)
 		// 文字の矩形を取得する。
 		TextSize charSize(dc, line.c_str() + charIndex, 1, m_spacing_x, m_spacing_y, TRUE);
 
-		// x を決定する。
-		int x = 0;
+		// x を算出する。
 
-		// 行端揃えなら
-		if (m_fp->check[Check::Justification])
+		double x[2] = {};
+
+		for (int i = 0; i < m_ox.getCount(); i++)
 		{
-			x = m_ox + textSize.m_width; // 左寄せ
-
-			if (line.length() >= 2)
-				x += ::MulDiv(extraWidth, charIndex, line.length() - 1);
-
-			switch (m_align)
+			// 行端揃えなら
+			if (m_fp->check[Check::Justification])
 			{
-			case 1:
-			case 4:
-			case 7:
+				x[i] = m_ox.m_pos[i] + textSize.m_width; // 左寄せ
+
+				if (line.length() >= 2)
+					x[i] += ::MulDiv(extraWidth, charIndex, line.length() - 1);
+
+				switch (m_align)
 				{
-					// 中央揃え
+				case 1:
+				case 4:
+				case 7:
+					{
+						// 中央揃え
 
-					x -= m_justificationWidth / 2;
-					x += charSize.m_centerX;
+						x[i] -= m_justificationWidth / 2;
+						x[i] += charSize.m_centerX;
 
-					break;
+						break;
+					}
+				case 2:
+				case 5:
+				case 8:
+					{
+						// 右寄せ
+
+						x[i] -= m_justificationWidth;
+						x[i] += charSize.m_width;
+
+						break;
+					}
 				}
-			case 2:
-			case 5:
-			case 8:
+			}
+			// 行端揃えではないなら
+			else
+			{
+				x[i] = m_ox.m_pos[i] + textSize.m_width; // 左寄せ
+
+				switch (m_align)
 				{
-					// 右寄せ
+				case 1:
+				case 4:
+				case 7:
+					{
+						// 中央揃え
 
-					x -= m_justificationWidth;
-					x += charSize.m_width;
+						x[i] -= lineSize.m_centerX;
+						x[i] += charSize.m_centerX;
 
-					break;
+						break;
+					}
+				case 2:
+				case 5:
+				case 8:
+					{
+						// 右寄せ
+
+						x[i] -= lineSize.m_width;
+						x[i] += charSize.m_width;
+
+						break;
+					}
 				}
 			}
 		}
-		// 行端揃えではないなら
-		else
-		{
-			x = m_ox + textSize.m_width; // 左寄せ
 
-			switch (m_align)
-			{
-			case 1:
-			case 4:
-			case 7:
-				{
-					// 中央揃え
-
-					x -= lineSize.m_centerX;
-					x += charSize.m_centerX;
-
-					break;
-				}
-			case 2:
-			case 5:
-			case 8:
-				{
-					// 右寄せ
-
-					x -= lineSize.m_width;
-					x += charSize.m_width;
-
-					break;
-				}
-			}
-		}
-
-		MY_TRACE(_T("line = %d, char = %d, x = %d, y = %d\n"), m_lineIndex, charIndex, x, y);
+		MY_TRACE(_T("line = %d, char = %d, x = (%f, %f), y = (%f, %f)\n"), m_lineIndex, charIndex, x[0], x[1], y[0], y[1]);
 
 		writeChar(&line[charIndex], x, y);
 
@@ -470,14 +546,18 @@ BOOL TextSplitter::splitToChar(HDC dc, const std::wstring& line, int y)
 	return TRUE;
 }
 
-BOOL TextSplitter::splitToRow(HDC dc, const std::wstring& line, int y)
+BOOL TextSplitter::splitToRow(HDC dc, const std::wstring& line, double y[2])
 {
 	TextSize lineSize(dc, line.c_str(), line.length(), m_spacing_x, m_spacing_y, TRUE);
 
-	// x を決定する。
-	int x = m_ox;
+	// x を算出する。
 
-	MY_TRACE(_T("line = %d, x = %d, y = %d\n"), m_lineIndex, x, y);
+	double x[2] = {};
+
+	for (int i = 0; i < m_ox.getCount(); i++)
+		x[i] = m_ox.m_pos[i];
+
+	MY_TRACE(_T("line = %d, x = (%f, %f), y = (%f, %f)\n"), m_lineIndex, x[0], x[1], y[0], y[1]);
 
 	// 16進数文字に変換されたテキストを取得する。
 	char hexText[4096 + 1] = {};
@@ -515,8 +595,8 @@ BOOL TextSplitter::splitToRow(HDC dc, const std::wstring& line, int y)
 	::WritePrivateProfileIntA(m_objectAppName, "layer", layer, m_tempFileName);
 	::WritePrivateProfileIntA(m_objectAppName, "start", m_start + frameOffset, m_tempFileName);
 	::WritePrivateProfileIntA(m_objectAppName, "end", m_end + frameOffset, m_tempFileName);
-	::WritePrivateProfileIntA(m_drawFilterAppName, "X", x, m_tempFileName);
-	::WritePrivateProfileIntA(m_drawFilterAppName, "Y", y, m_tempFileName);
+	writePos(&m_ox, "X", x);
+	writePos(&m_oy, "Y", y);
 	::WritePrivateProfileStringA(m_firstFilterAppName, "text",  hexText, m_tempFileName);
 
 	char objectAppNameSplit[MAX_PATH] = {};
@@ -590,32 +670,38 @@ BOOL TextSplitter::splitText()
 
 		MY_TRACE_WSTR(line.c_str());
 
-		// y を決定する。
-		int y = m_oy + (m_baseSize.m_height + m_spacing_y) * m_lineIndex; // [上]
+		// y を算出する。
 
-		switch (m_align)
+		double y[2] = {};
+
+		for (int i = 0; i < m_oy.getCount(); i++)
 		{
-		case 3:
-		case 4:
-		case 5:
+			y[i] = m_oy.m_pos[i] + (m_baseSize.m_height + m_spacing_y) * m_lineIndex; // [上]
+
+			switch (m_align)
 			{
-				// [中]
+			case 3:
+			case 4:
+			case 5:
+				{
+					// [中]
 
-				y -= m_wholeCenterY;
-				y += m_baseSize.m_centerY;
+					y[i] -= m_wholeCenterY;
+					y[i] += m_baseSize.m_centerY;
 
-				break;
-			}
-		case 6:
-		case 7:
-		case 8:
-			{
-				// [下]
+					break;
+				}
+			case 6:
+			case 7:
+			case 8:
+				{
+					// [下]
 
-				y -= m_wholeHeight;
-				y += m_baseSize.m_height;
+					y[i] -= m_wholeHeight;
+					y[i] += m_baseSize.m_height;
 
-				break;
+					break;
+				}
 			}
 		}
 
